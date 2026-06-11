@@ -13,9 +13,11 @@ mongoose
 
 const userRoute = require("./routes/userRoute");
 const superAdminRoute = require("./routes/superAdminRoute");
+const adminRoute = require("./routes/adminRoute");
 
 app.use("/user", userRoute);
 app.use("/superadmin", superAdminRoute);
+app.use("/admin", adminRoute);
 
 app.use((req, res) => {
   return res.status(404).json({
