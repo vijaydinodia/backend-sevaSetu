@@ -248,6 +248,13 @@ exports.createCategory = async (req, res) => {
       });
     }
 
+    if (!image) {
+      return res.status(400).json({
+        success: false,
+        message: "Category image is required",
+      });
+    }
+
     const normalizedName = name.trim().toLowerCase();
 
     const alreadyCategory = await Category.findOne({ name: normalizedName });

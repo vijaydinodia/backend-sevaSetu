@@ -6,22 +6,22 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const seedDatabase = require("./utils/seedData");
 
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("DB is connected");
-    seedDatabase();
   })
   .catch((err) => console.log("Db is not connected ,", err));
 
 const userRoute = require("./routes/userRoute");
+const authRoute = require("./routes/authRoute");
 const superAdminRoute = require("./routes/superAdminRoute");
 const adminRoute = require("./routes/adminRoute");
 const providerRoute = require("./routes/providerRoute");
 const locationRoute = require("./routes/locationRoute");
 
+app.use("/user", authRoute);
 app.use("/user", userRoute);
 app.use("/superadmin", superAdminRoute);
 app.use("/admin", adminRoute);
