@@ -32,3 +32,78 @@ exports.auth = (req, res, next) => {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+exports.isSuperAdmin = (req, res, next) => {
+  try {
+    if (req.user && req.user.role === "superAdmin") {
+      next();
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Only super admin can access this route",
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.isAdmin = (req, res, next) => {
+  try {
+    if (req.user && req.user.role === "admin") {
+      next();
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can access this route",
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.isProvider = (req, res, next) => {
+  try {
+    if (req.user && req.user.role === "provider") {
+      next();
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only service providers can access this route.",
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.isUser = (req, res, next) => {
+  try {
+    if (req.user && req.user.role === "user") {
+      next();
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Users only.",
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.isAdminOrSuperAdmin = (req, res, next) => {
+  try {
+    if (req.user && (req.user.role === "admin" || req.user.role === "superAdmin")) {
+      next();
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admins or Super Admins only.",
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

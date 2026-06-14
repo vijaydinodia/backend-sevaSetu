@@ -7,6 +7,8 @@ const Review = require("../model/reviewModel");
 const SuperAdmin = require("../model/superAdminModel");
 const { uploadImages } = require("../utils/cloudnairy");
 const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
+const Location = require("../model/locationModel");
 const adminCredentialsTemplate = require("../templates/adminCredentialsTemplate")
 const mailSender = require("../utils/mailSender");
 
@@ -246,7 +248,9 @@ exports.createCategory = async (req, res) => {
       });
     }
 
-    const alreadyCategory = await Category.findOne({ name: name.trim() });
+    const normalizedName = name.trim().toLowerCase();
+
+    const alreadyCategory = await Category.findOne({ name: normalizedName });
 
     if (alreadyCategory) {
       return res.status(400).json({
@@ -256,7 +260,7 @@ exports.createCategory = async (req, res) => {
     }
 
     const newCategory = await Category.create({
-      name: name.trim(),
+      name: normalizedName,
       description,
       image,
       createdBy: req.user.id,
@@ -313,7 +317,23 @@ exports.updateCategory = async (req, res) => {
     const { name, description, image, isActive } = req.body;
 
     const updateData = { updatedBy: req.user.id };
-    if (name) updateData.name = name.trim();
+
+    if (name) {
+      const normalizedName = name.trim().toLowerCase();
+      // Check if another category already has this name
+      const duplicate = await Category.findOne({
+        name: normalizedName,
+        _id: { $ne: req.params.id },
+      });
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          message: "Category with this name already exists",
+        });
+      }
+      updateData.name = normalizedName;
+    }
+
     if (description) updateData.description = description;
     if (image) updateData.image = image;
     if (isActive === true || isActive === false) updateData.isActive = isActive;
@@ -897,17 +917,29 @@ exports.getOneBooking = async (req, res) => {
 
 exports.updateBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true },
-    );
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res
         .status(404)
         .json({ success: false, message: "Booking not found" });
     }
+
+    if (["completed", "rejected", "cancelled"].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Booking is already ${booking.status} and cannot be modified.`,
+      });
+    }
+
+    // Update fields
+    Object.assign(booking, req.body);
+    
+    if (req.body.status === "completed") {
+      booking.completedAt = new Date();
+    }
+    
+    await booking.save();
 
     return res.status(200).json({
       success: true,
@@ -1161,7 +1193,7 @@ exports.getAllLocation = async (req, res) => {
   }
 };
 
-//create Admin
+//create Admin — password is auto-generated via UUID and emailed; not accepted from request body
 
 exports.createAdmin = async (req, res) => {
   try {
@@ -1170,37 +1202,55 @@ exports.createAdmin = async (req, res) => {
       lastName,
       email,
       phone,
-      password,
       employeeId,
       category,
+      city,
       permissions,
     } = req.body;
 
-    // Validation
+    // Validation — no password field accepted from client
     if (
       !firstName ||
       !email ||
       !phone ||
-      !password ||
       !employeeId ||
-      !category
+      !category ||
+      !city
     ) {
       return res.status(400).json({
         success: false,
         message:
-          "firstName, email, phone, password, employeeId and category are required",
+          "firstName, email, phone, employeeId, category and city are required",
       });
     }
 
-    // Check existing user
-    const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { phone }],
-    });
-
-    if (existingUser) {
+    // Check existing email
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      if (existingEmail.isDeleted) {
+        return res.status(409).json({
+          success: false,
+          message: "Email is already registered to a deleted account. Please restore the user or use a different email.",
+        });
+      }
       return res.status(409).json({
         success: false,
-        message: "User already exists",
+        message: "Email is already registered",
+      });
+    }
+
+    // Check existing phone
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      if (existingPhone.isDeleted) {
+        return res.status(409).json({
+          success: false,
+          message: "Phone number is already registered to a deleted account. Please restore the user or use a different phone number.",
+        });
+      }
+      return res.status(409).json({
+        success: false,
+        message: "Phone number is already registered",
       });
     }
 
@@ -1216,8 +1266,52 @@ exports.createAdmin = async (req, res) => {
       });
     }
 
+    // Check that the category exists and is active
+    const categoryExists = await Category.findById(category);
+
+    if (!categoryExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    if (!categoryExists.isActive || categoryExists.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: "Category is inactive or deleted. Cannot assign admin to it.",
+      });
+    }
+
+    const activeLoc = await Location.findOne({
+      city: { $regex: new RegExp(`^${city.trim()}$`, "i") },
+      isActive: true,
+    });
+    if (!activeLoc) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot assign admin to ${city} as this location is inactive or not serviced.`,
+      });
+    }
+
+    // One category can only have one admin — check if already assigned
+    const categoryAlreadyAssigned = await Admin.findOne({
+      category: category,
+      isDeleted: false,
+    });
+
+    if (categoryAlreadyAssigned) {
+      return res.status(400).json({
+        success: false,
+        message: "This category already has an admin assigned. One category can only have one admin.",
+      });
+    }
+
+    // Auto-generate password using UUID
+    const plainPassword = uuidv4();
+
     // Hash Password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     // Create User
     const user = await User.create({
@@ -1227,6 +1321,9 @@ exports.createAdmin = async (req, res) => {
       phone,
       password: hashedPassword,
       role: "admin",
+      address: {
+        city: city.trim(),
+      },
       createdBy: req.user.id,
     });
 
@@ -1235,15 +1332,16 @@ exports.createAdmin = async (req, res) => {
       user: user._id,
       employeeId,
       category,
+      city: city.trim(),
       permissions: permissions || [],
       createdBy: req.user.id,
     });
 
-    // send admin credentials
+    // Send admin credentials (UUID password) via email
     await mailSender(
       email,
       "Admin Account Created - SevaSetu",
-      adminCredentialsTemplate(firstName, email, password),
+      adminCredentialsTemplate(firstName, email, plainPassword, employeeId, categoryExists.name),
     );
 
     // Populate Response
@@ -1253,7 +1351,7 @@ exports.createAdmin = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Admin created successfully",
+      message: "Admin created successfully and credentials sent to email",
       data: populatedAdmin,
     });
   } catch (error) {

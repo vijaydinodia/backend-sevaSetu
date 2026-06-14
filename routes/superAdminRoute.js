@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const { auth } = require("../middleware/auth");
+const { auth, isSuperAdmin } = require("../middleware/auth");
 const {
-  isSuperAdmin,
   getSuperAdminProfile,
   editSuperAdminProfile,
   createSuperAdmin,
@@ -127,9 +126,5 @@ router.put("/review/update/:id", updateReview);
 router.delete("/review/soft-delete/:id", softDeleteReview);
 router.put("/review/restore/:id", restoreReview);
 router.delete("/review/hard-delete/:id", hardDeleteReview);
-
-//location
-router.get("/location/getall", getAllLocation);
-
 
 module.exports = router;

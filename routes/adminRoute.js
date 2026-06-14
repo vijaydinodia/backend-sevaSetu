@@ -1,11 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { auth } = require("../middleware/auth");
+const { auth, isAdmin } = require("../middleware/auth");
 const {
-  isAdmin,
   getAdminProfile,
   approveProvider,
   rejectProvider,
+  getPendingProviders,
+  getOneApplication,
   getAllProvider,
   getOneProvider,
   softDeleteProvider,
@@ -33,7 +34,11 @@ router.use(isAdmin);
 //profile
 router.get("/profile", getAdminProfile);
 
-//provider
+//provider applications
+router.get("/provider/applications/pending", getPendingProviders);
+router.get("/provider/applications/:id", getOneApplication);
+
+//provider actions
 router.put("/provider/approve/:id", approveProvider);
 router.put("/provider/reject/:id", rejectProvider);
 router.get("/provider/getall", getAllProvider);

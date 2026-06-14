@@ -21,8 +21,9 @@ const mailSender = async (email, title, body) => {
 
     return info;
   } catch (error) {
-    console.log(error.message);
-    throw error;
+    console.error("Mail Sender Error:", error.message);
+    // Do not throw so that API requests do not fail on email notification issues
+    return null;
   }
 };
 

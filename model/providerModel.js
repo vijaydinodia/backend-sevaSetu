@@ -9,9 +9,49 @@ const providerSchema = new mongoose.Schema(
       unique: true,
     },
 
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
+
+    categories: [
+      {
+        category: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Category",
+        },
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+      }
+    ],
+
     businessName: {
       type: String,
       required: true,
+    },
+
+    aadharFront: {
+      type: String,
+      default: "",
+    },
+
+    aadharBack: {
+      type: String,
+      default: "",
+    },
+
+    panCard: {
+      type: String,
+      default: "",
+    },
+
+    selfPhoto: {
+      type: String,
+      default: "",
     },
 
     experience: {

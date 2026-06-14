@@ -7,9 +7,9 @@ const categorySchema = new mongoose.Schema(
       required: [true, "Category name is required"],
       unique: true,
       trim: true,
+      lowercase: true,
       maxlength: 50,
     },
-
 
     description: {
       type: String,
@@ -19,7 +19,7 @@ const categorySchema = new mongoose.Schema(
 
     image: {
       type: String,
-      default: "",
+      default: "",  
     },
 
     isActive: {
@@ -30,7 +30,7 @@ const categorySchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false,
-    },
+    }, 
 
     deletedAt: {
       type: Date,

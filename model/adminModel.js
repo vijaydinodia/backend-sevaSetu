@@ -21,6 +21,11 @@ const adminSchema = new mongoose.Schema(
       required: true,
     },
 
+    city: {
+      type: String,
+      required: true,
+    },
+
     permissions: [
       {
         type: String,

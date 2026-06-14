@@ -1,43 +1,39 @@
 const express = require("express");
 const router = express.Router();
-const { auth } = require("../middleware/auth");
 const multer = require("multer");
-const { uploadImages } = require("../utils/cloudnairy");
+
+const auth = require("../middleware/auth");
+const userController = require("../controller/userController");
+
+// multer stores file in memory (no local disk), then we send it to Cloudinary
 const upload = multer({ storage: multer.memoryStorage() });
 
-const {
-  signup,
-  login,
-  forgetPassword,
-  verifyOtp,
-  resetPassword,
-  editProfile,
-} = require("../controller/userController");
+// signup and login
+router.post("/signup", userController.signup);
+router.post("/login", userController.login);
 
-router.post("/signup", signup);
-router.post("/login", login);
+// forgot password flow
+router.post("/forgetPassword", userController.forgetPassword);
+router.post("/verifyOtp", userController.verifyOtp);
+router.post("/resetPassword", userController.resetPassword);
 
-router.post("/forgetPassword", forgetPassword);
-router.post("/verifyOtp", verifyOtp);
-router.post("/resetPassword", resetPassword);
+// edit profile - login required
+router.put("/edit-profile", auth.auth, userController.editProfile);
 
-//edit profile - requires auth
-router.put("/edit-profile", auth, editProfile);
+// upload image - login required
+router.post("/upload/image", auth.auth, upload.single("image"), userController.uploadImage);
 
-//upload image - requires auth
-router.post("/upload/image", auth, upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "Image is required" });
-    }
-    const uploadedImages = await uploadImages([req.file]);
-    if (!uploadedImages.length) {
-      return res.status(400).json({ success: false, message: "Image upload failed" });
-    }
-    return res.status(200).json({ success: true, message: "Image uploaded successfully", data: uploadedImages[0] });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
+// upload image - no login needed (for provider signup)
+router.post("/upload-public", upload.single("image"), userController.uploadPublic);
+
+// get all active categories
+router.get("/categories", userController.getActiveCategories);
+
+// public route to list services offered by providers
+router.get("/services", userController.getServicesOfferedByProviders);
+
+// authenticated routes for booking
+router.post("/booking", auth.auth, userController.createBooking);
+router.get("/bookings", auth.auth, userController.getCustomerBookings);
 
 module.exports = router;

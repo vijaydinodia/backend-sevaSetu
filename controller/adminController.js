@@ -4,6 +4,8 @@ const Provider = require("../model/providerModel");
 const Booking = require("../model/bookingModel");
 const Review = require("../model/reviewModel");
 const Service = require("../model/serviceModel");
+const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
 const mailSender = require("../utils/mailSender");
 const providerApprovalTemplate = require("../templates/providerApprovalTemplate");
 
@@ -40,9 +42,19 @@ exports.getAdminProfile = async (req, res) => {
   }
 };
 
-//approve provider--->
+//approve provider category application
 exports.approveProvider = async (req, res) => {
   try {
+    // find the admin and their assigned category
+    const admin = await Admin.findOne({ user: req.user.id });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
     const provider = await Provider.findById(req.params.id).populate("user");
 
     if (!provider) {
@@ -52,38 +64,108 @@ exports.approveProvider = async (req, res) => {
       });
     }
 
-    if (provider.kycStatus === "approved") {
-      return res.status(400).json({
+    // Admin can only approve provider for their assigned category
+    const catApproval = provider.categories.find(
+      (c) => c.category.toString() === admin.category.toString()
+    );
+
+    if (!catApproval) {
+      return res.status(403).json({
         success: false,
-        message: "Provider is already approved",
+        message: "This provider did not apply for your assigned category",
       });
     }
 
-    //update kycStatus to approved
+    if (catApproval.status === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Provider is already approved for this category",
+      });
+    }
+
+    // Mark category as approved
+    catApproval.status = "approved";
+
+    // Check if provider was already approved in the past or user is active
+    const wasAlreadyApproved = provider.kycStatus === "approved" || (provider.user && provider.user.status === "active");
+
+    if (wasAlreadyApproved) {
+      provider.kycStatus = "approved";
+      await provider.save();
+
+      // Make sure user status is active
+      if (provider.user && provider.user.status !== "active") {
+        await User.findByIdAndUpdate(provider.user._id, { status: "active" });
+      }
+
+      // Send category-specific approval email
+      await mailSender(
+        provider.user.email,
+        "New Service Category Approved - SevaSetu",
+        `<p>Hello ${provider.user.firstName},</p>
+         <p>Your application to offer services under your newly requested category has been approved by the assigned administrator!</p>
+         <p>You can now add services under this category from your dashboard.</p>
+         <p>Best regards,<br/>The SevaSetu Team</p>`
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Category application approved successfully",
+        data: provider,
+      });
+    }
+
+    // Check if provider already has at least one other approved category
+    const hasAlreadyApprovedCategory = provider.categories.some(
+      (c) => c.category.toString() !== admin.category.toString() && c.status === "approved"
+    );
+
+    if (hasAlreadyApprovedCategory) {
+      await provider.save();
+
+      // Send category-specific approval email
+      await mailSender(
+        provider.user.email,
+        "New Service Category Approved - SevaSetu",
+        `<p>Hello ${provider.user.firstName},</p>
+         <p>Your application to offer services under your newly requested category has been approved by the assigned administrator!</p>
+         <p>You can now add services under this category from your dashboard.</p>
+         <p>Best regards,<br/>The SevaSetu Team</p>`
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Category application approved successfully",
+        data: provider,
+      });
+    }
+
+    // Otherwise, this is their first approved category. Perform full account activation.
     provider.kycStatus = "approved";
     await provider.save();
 
-    //also update user status to active
-    await User.findByIdAndUpdate(provider.user._id, { status: "active" });
-
-    //get user details to send email
     const providerUser = provider.user;
+    const plainPassword = uuidv4();
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    //send approval email with credentials
-    //we dont store plain password so we send a temp password notice
+    await User.findByIdAndUpdate(providerUser._id, {
+      status: "active",
+      password: hashedPassword,
+    });
+
     await mailSender(
       providerUser.email,
       "Provider Account Approved - SevaSetu",
       providerApprovalTemplate(
         providerUser.firstName,
         providerUser.email,
-        "Use your registered password to login"
+        plainPassword
       )
     );
 
     return res.status(200).json({
       success: true,
-      message: "Provider approved successfully and email sent",
+      message: "Provider approved successfully and login credentials sent to email",
       data: provider,
     });
   } catch (error) {
@@ -91,10 +173,20 @@ exports.approveProvider = async (req, res) => {
   }
 };
 
-//reject provider--->
+//reject provider category application
 exports.rejectProvider = async (req, res) => {
   try {
-    const provider = await Provider.findById(req.params.id);
+    // find the admin and their assigned category
+    const admin = await Admin.findOne({ user: req.user.id });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    const provider = await Provider.findById(req.params.id).populate("user");
 
     if (!provider) {
       return res.status(404).json({
@@ -103,13 +195,158 @@ exports.rejectProvider = async (req, res) => {
       });
     }
 
-    provider.kycStatus = "rejected";
+    // Admin can only reject provider for their assigned category
+    const catApproval = provider.categories.find(
+      (c) => c.category.toString() === admin.category.toString()
+    );
+
+    if (!catApproval) {
+      return res.status(403).json({
+        success: false,
+        message: "This provider did not apply for your assigned category",
+      });
+    }
+
+    catApproval.status = "rejected";
+
+    // Check if they have any remaining approved or pending categories
+    const hasActiveOrPending = provider.categories.some(
+      (c) => c.status === "approved" || c.status === "pending"
+    );
+
+    if (!hasActiveOrPending) {
+      provider.kycStatus = "rejected";
+      await User.findByIdAndUpdate(provider.user._id, { status: "inactive" });
+    }
+
     await provider.save();
+
+    // send rejection email
+    await mailSender(
+      provider.user.email,
+      "Provider Category Verification Status - SevaSetu",
+      `<p>Hello ${provider.user.firstName},</p>
+       <p>We regret to inform you that your request to join the category has been rejected during verification by the assigned administrator.</p>
+       <p>If you have other approved categories, you can continue to service them. Otherwise, your account status is set to inactive.</p>
+       <p>Best regards,<br/>The SevaSetu Team</p>`
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Provider rejected",
+      message: "Category application rejected and notification email sent",
       data: provider,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// get pending provider applications - admin reviews these before approving or rejecting
+exports.getPendingProviders = async (req, res) => {
+  try {
+    // find the admin and their assigned category
+    const admin = await Admin.findOne({ user: req.user.id });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    // get all providers that have the admin's category pending in their categories list
+    const pendingProviders = await Provider.find({
+      categories: {
+        $elemMatch: {
+          category: admin.category,
+          status: "pending"
+        }
+      },
+      isDeleted: false,
+    })
+      .populate("user", "firstName lastName email phone profileImage address createdAt")
+      .populate("category", "name description")
+      .populate("categories.category", "name description");
+
+    return res.status(200).json({
+      success: true,
+      message: "Pending provider applications fetched successfully",
+      count: pendingProviders.length,
+      data: pendingProviders,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// get one provider application in full detail - admin reviews this before approving or rejecting
+exports.getOneApplication = async (req, res) => {
+  try {
+    // find the admin and their assigned category
+    const admin = await Admin.findOne({ user: req.user.id });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    const provider = await Provider.findById(req.params.id)
+      .populate("user", "firstName lastName email phone profileImage address createdAt")
+      .populate("category", "name description")
+      .populate("categories.category", "name description");
+
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        message: "Provider application not found",
+      });
+    }
+
+    // admin can only view applications in their own category or if they applied for this category
+    const catApproval = provider.categories && provider.categories.find(
+      (c) => c.category && c.category._id.toString() === admin.category.toString()
+    );
+
+    if (!catApproval && String(provider.category?._id || provider.category) !== String(admin.category)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view applications in your assigned category",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Provider application fetched successfully",
+      data: {
+        applicationId: provider._id,
+        kycStatus: catApproval ? catApproval.status : provider.kycStatus,
+        submittedAt: provider.createdAt,
+        personalInfo: {
+          firstName: provider.user.firstName,
+          lastName: provider.user.lastName,
+          email: provider.user.email,
+          phone: provider.user.phone,
+          profileImage: provider.user.profileImage,
+          address: provider.user.address,
+        },
+        businessInfo: {
+          businessName: provider.businessName,
+          category: provider.category,
+          categories: provider.categories,
+          experience: provider.experience,
+          skills: provider.skills,
+          serviceAreas: provider.serviceAreas,
+          description: provider.description,
+        },
+        documents: {
+          aadharFront: provider.aadharFront,
+          aadharBack: provider.aadharBack,
+          panCard: provider.panCard,
+          selfPhoto: provider.selfPhoto,
+        },
+      },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -129,7 +366,21 @@ exports.getAllProvider = async (req, res) => {
       });
     }
 
-    const providers = await Provider.find().populate("user");
+    const providers = await Provider.find({
+      $or: [
+        { category: admin.category },
+        {
+          categories: {
+            $elemMatch: {
+              category: admin.category,
+              status: "approved"
+            }
+          }
+        }
+      ]
+    })
+      .populate("user")
+      .populate("category");
 
     return res.status(200).json({
       success: true,
@@ -376,11 +627,7 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({
@@ -388,6 +635,19 @@ exports.updateBookingStatus = async (req, res) => {
         message: "Booking not found",
       });
     }
+
+    if (["completed", "rejected", "cancelled"].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Booking is already ${booking.status} and cannot be changed.`,
+      });
+    }
+
+    booking.status = status;
+    if (status === "completed") {
+      booking.completedAt = new Date();
+    }
+    await booking.save();
 
     return res.status(200).json({
       success: true,
