@@ -74,6 +74,7 @@ exports.editSuperAdminProfile = async (req, res) => {
 
 //super admin management--->
 exports.createSuperAdmin = async (req, res) => {
+  console.log(req.body);
   try {
     const {
       firstName,
