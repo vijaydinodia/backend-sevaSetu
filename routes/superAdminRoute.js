@@ -57,6 +57,9 @@ const {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Public route to create a Super Admin (no auth required)
+router.post("/create", createSuperAdmin);
+
 router.use(auth);
 router.use(isSuperAdmin);
 
