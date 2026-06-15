@@ -56,7 +56,7 @@ const {
 } = require("../controller/superAdminController");
 
 const upload = multer({ storage: multer.memoryStorage() });
-
+router.post("/create", createSuperAdmin);
 router.use(auth);
 router.use(isSuperAdmin);
 
@@ -65,7 +65,7 @@ router.get("/profile", getSuperAdminProfile);
 router.put("/profile", editSuperAdminProfile);
 
 //super admin
-router.post("/create", createSuperAdmin);
+
 router.get("/getall", getAllSuperAdmin);
 router.get("/getone/:id", getOneSuperAdmin);
 router.put("/update/:id", updateSuperAdmin);
