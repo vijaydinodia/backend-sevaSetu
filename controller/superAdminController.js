@@ -75,47 +75,57 @@ exports.editSuperAdminProfile = async (req, res) => {
 //super admin management--->
 exports.createSuperAdmin = async (req, res) => {
   try {
-    const { user, permissions } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      permissions
+    } = req.body;
 
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "User id is required",
-      });
-    }
-
-    const userExist = await User.findById(user);
-
-    if (!userExist) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    const alreadySuperAdmin = await SuperAdmin.findOne({ user });
-
-    if (alreadySuperAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: "Super admin already exists",
-      });
-    }
-
-    const newSuperAdmin = await SuperAdmin.create({
-      user,
-      permissions,
+    const existingUser = await User.findOne({
+      $or: [{ email }, { phone }]
     });
 
-    await User.findByIdAndUpdate(user, { role: "superAdmin" });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      email: email.toLowerCase(),
+      phone,
+      password: hashedPassword,
+      role: "superAdmin"
+    });
+
+    const superAdminData = { user: newUser._id };
+    if (permissions && permissions.length > 0) {
+      superAdminData.permissions = permissions;
+    }
+    const superAdmin = await SuperAdmin.create(superAdminData);
 
     return res.status(201).json({
       success: true,
       message: "Super admin created successfully",
-      data: newSuperAdmin,
+      data: {
+        user: newUser,
+        superAdmin
+      }
     });
+
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
