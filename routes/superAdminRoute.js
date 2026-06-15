@@ -57,8 +57,6 @@ const {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/create", createSuperAdmin);
-
 router.use(auth);
 router.use(isSuperAdmin);
 
