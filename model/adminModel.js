@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { runWithTransaction } = require("../utils/dbTransaction");
 
 const adminSchema = new mongoose.Schema(
   {
@@ -70,5 +71,7 @@ const adminSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+
 
 module.exports = mongoose.model("Admin", adminSchema);

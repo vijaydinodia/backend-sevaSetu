@@ -5,12 +5,16 @@ const Category = require("../model/categoryModel");
 const Booking = require("../model/bookingModel");
 const Review = require("../model/reviewModel");
 const SuperAdmin = require("../model/superAdminModel");
+const Complaint = require("../model/complaintModel");
+const ProviderService = require("../model/providerServicModel");
+const Service = require("../model/serviceModel");
 const { uploadImages } = require("../utils/cloudnairy");
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const Location = require("../model/locationModel");
 const adminCredentialsTemplate = require("../templates/adminCredentialsTemplate")
 const mailSender = require("../utils/mailSender");
+const { runWithTransaction } = require("../utils/dbTransaction");
 
 //super admin profile--->
 exports.getSuperAdminProfile = async (req, res) => {
@@ -522,11 +526,29 @@ exports.changeUserStatus = async (req, res) => {
 
 exports.softDeleteUser = async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: true, deletedAt: new Date(), status: "inactive" },
-      { new: true },
-    );
+    const deletedUser = await runWithTransaction(async (session) => {
+      const user = await User.findById(req.params.id).session(session);
+      if (!user) return null;
+
+      const userId = user._id;
+
+      // 1. Soft delete the user
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { isDeleted: true, deletedAt: new Date(), status: "inactive" },
+        { new: true, session }
+      );
+
+      // 2. Cascade soft delete to associated profiles
+      await Admin.updateMany({ user: userId }, { $set: { isDeleted: true, deletedAt: new Date(), status: "inactive" } }, { session });
+      await Provider.updateMany({ user: userId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { session });
+      
+      // 3. Cascade soft delete to interactions
+      await Booking.updateMany({ customer: userId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { session });
+      await Review.updateMany({ customer: userId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { session });
+
+      return updatedUser;
+    });
 
     if (!deletedUser) {
       return res
@@ -544,11 +566,29 @@ exports.softDeleteUser = async (req, res) => {
 
 exports.restoreUser = async (req, res) => {
   try {
-    const restoredUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: false, deletedAt: null, status: "active" },
-      { new: true },
-    );
+    const restoredUser = await runWithTransaction(async (session) => {
+      const user = await User.findById(req.params.id).session(session);
+      if (!user) return null;
+
+      const userId = user._id;
+
+      // 1. Restore the user
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { isDeleted: false, deletedAt: null, status: "active" },
+        { new: true, session }
+      );
+
+      // 2. Cascade restore to associated profiles
+      await Admin.updateMany({ user: userId }, { $set: { isDeleted: false, deletedAt: null, status: "active" } }, { session });
+      await Provider.updateMany({ user: userId }, { $set: { isDeleted: false, deletedAt: null } }, { session });
+      
+      // 3. Cascade restore to interactions
+      await Booking.updateMany({ customer: userId }, { $set: { isDeleted: false, deletedAt: null } }, { session });
+      await Review.updateMany({ customer: userId }, { $set: { isDeleted: false, deletedAt: null } }, { session });
+
+      return updatedUser;
+    });
 
     if (!restoredUser) {
       return res
@@ -566,7 +606,57 @@ exports.restoreUser = async (req, res) => {
 
 exports.hardDeleteUser = async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    const deletedUser = await runWithTransaction(async (session) => {
+      // 1. Fetch the user to be deleted
+      const user = await User.findById(req.params.id).session(session);
+      if (!user) return null; // User not found, return null
+
+      const userId = user._id;
+
+      // 2. Delete Admin profile if this user is an admin
+      const admin = await Admin.findOne({ user: userId }).session(session);
+      if (admin) {
+        await Admin.findByIdAndDelete(admin._id, { session });
+      }
+
+      // 3. Delete Provider profile and all provider-related data
+      const provider = await Provider.findOne({ user: userId }).session(session);
+      if (provider) {
+        const providerId = provider._id;
+        
+        // Delete services offered by this provider
+        await ProviderService.deleteMany({ provider: providerId }, { session });
+        
+        // Delete bookings assigned to this provider
+        await Booking.deleteMany({ provider: providerId }, { session });
+        
+        // Delete complaints against this provider
+        await Complaint.deleteMany({ provider: providerId }, { session });
+        
+        // Delete reviews for this provider
+        await Review.deleteMany({ provider: providerId }, { session });
+        
+        // Finally, delete the provider profile
+        await Provider.findByIdAndDelete(providerId, { session });
+      }
+
+      // 4. Delete SuperAdmin profile if this user is a super admin
+      await SuperAdmin.deleteMany({ user: userId }, { session });
+
+      // 5. Delete all interactions where this user was the customer
+      await Booking.deleteMany({ customer: userId }, { session });
+      await Complaint.deleteMany({ customer: userId }, { session });
+      await Review.deleteMany({ customer: userId }, { session });
+
+      // 6. Clean up references in categories and services (set to null)
+      await Category.updateMany({ createdBy: userId }, { $set: { createdBy: null } }, { session });
+      await Category.updateMany({ updatedBy: userId }, { $set: { updatedBy: null } }, { session });
+      await Service.updateMany({ createdBy: userId }, { $set: { createdBy: null } }, { session });
+      await Service.updateMany({ updatedBy: userId }, { $set: { updatedBy: null } }, { session });
+
+      // 7. Finally, delete the User record itself
+      return await User.findByIdAndDelete(userId, { session });
+    });
 
     if (!deletedUser) {
       return res
@@ -677,23 +767,32 @@ exports.changeAdminStatus = async (req, res) => {
 
 exports.softDeleteAdmin = async (req, res) => {
   try {
-    const admin = await Admin.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: true, deletedAt: new Date(), status: "inactive" },
-      { new: true },
-    );
+    const admin = await runWithTransaction(async (session) => {
+      const existingAdmin = await Admin.findById(req.params.id).session(session);
+      if (!existingAdmin) return null;
+
+      // 1. Soft delete the Admin
+      const updatedAdmin = await Admin.findByIdAndUpdate(
+        req.params.id,
+        { isDeleted: true, deletedAt: new Date(), status: "inactive" },
+        { new: true, session }
+      );
+
+      // 2. Cascade soft delete to the underlying User account
+      await User.updateOne(
+        { _id: existingAdmin.user }, 
+        { $set: { isDeleted: true, deletedAt: new Date(), status: "inactive" } }, 
+        { session }
+      );
+
+      return updatedAdmin;
+    });
 
     if (!admin) {
       return res
         .status(404)
         .json({ success: false, message: "Admin not found" });
     }
-
-    await User.findByIdAndUpdate(admin.user, {
-      isDeleted: true,
-      deletedAt: new Date(),
-      status: "inactive",
-    });
 
     return res
       .status(200)
@@ -705,23 +804,32 @@ exports.softDeleteAdmin = async (req, res) => {
 
 exports.restoreAdmin = async (req, res) => {
   try {
-    const admin = await Admin.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: false, deletedAt: null, status: "active" },
-      { new: true },
-    );
+    const admin = await runWithTransaction(async (session) => {
+      const existingAdmin = await Admin.findById(req.params.id).session(session);
+      if (!existingAdmin) return null;
+
+      // 1. Restore the Admin
+      const updatedAdmin = await Admin.findByIdAndUpdate(
+        req.params.id,
+        { isDeleted: false, deletedAt: null, status: "active" },
+        { new: true, session }
+      );
+
+      // 2. Cascade restore to the underlying User account
+      await User.updateOne(
+        { _id: existingAdmin.user }, 
+        { $set: { isDeleted: false, deletedAt: null, status: "active" } }, 
+        { session }
+      );
+
+      return updatedAdmin;
+    });
 
     if (!admin) {
       return res
         .status(404)
         .json({ success: false, message: "Admin not found" });
     }
-
-    await User.findByIdAndUpdate(admin.user, {
-      isDeleted: false,
-      deletedAt: null,
-      status: "active",
-    });
 
     return res
       .status(200)
@@ -733,9 +841,19 @@ exports.restoreAdmin = async (req, res) => {
 
 exports.hardDeleteAdmin = async (req, res) => {
   try {
-    const admin = await Admin.findByIdAndDelete(req.params.id);
+    const deletedAdmin = await runWithTransaction(async (session) => {
+      // 1. Fetch the admin to be deleted
+      const admin = await Admin.findById(req.params.id).session(session);
+      if (!admin) return null; // Admin not found, return null
 
-    if (!admin) {
+      // 2. Delete the associated User account permanently
+      await User.findByIdAndDelete(admin.user, { session });
+
+      // 3. Finally, delete the Admin record itself
+      return await Admin.findByIdAndDelete(admin._id, { session });
+    });
+
+    if (!deletedAdmin) {
       return res
         .status(404)
         .json({ success: false, message: "Admin not found" });
@@ -810,19 +928,37 @@ exports.updateProvider = async (req, res) => {
 
 exports.softDeleteProvider = async (req, res) => {
   try {
-    const provider = await Provider.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: true, deletedAt: new Date() },
-      { new: true },
-    );
+    const provider = await runWithTransaction(async (session) => {
+      const existingProvider = await Provider.findById(req.params.id).session(session);
+      if (!existingProvider) return null;
+
+      const providerId = existingProvider._id;
+
+      // 1. Soft delete the provider
+      const updatedProvider = await Provider.findByIdAndUpdate(
+        providerId,
+        { isDeleted: true, deletedAt: new Date() },
+        { new: true, session }
+      );
+
+      // 2. Cascade soft delete to the underlying User account
+      await User.updateOne({ _id: existingProvider.user }, { $set: { isDeleted: true, deletedAt: new Date(), status: "inactive" } }, { session });
+
+      // 3. Cascade soft delete to interactions
+      await Booking.updateMany({ provider: providerId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { session });
+      await Review.updateMany({ provider: providerId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { session });
+
+      // 4. Mark ProviderServices as unavailable
+      await ProviderService.updateMany({ provider: providerId }, { $set: { isAvailable: false } }, { session });
+
+      return updatedProvider;
+    });
 
     if (!provider) {
       return res
         .status(404)
         .json({ success: false, message: "Provider not found" });
     }
-
-    await User.findByIdAndUpdate(provider.user, { status: "inactive" });
 
     return res.status(200).json({
       success: true,
@@ -836,19 +972,37 @@ exports.softDeleteProvider = async (req, res) => {
 
 exports.restoreProvider = async (req, res) => {
   try {
-    const provider = await Provider.findByIdAndUpdate(
-      req.params.id,
-      { isDeleted: false, deletedAt: null },
-      { new: true },
-    );
+    const provider = await runWithTransaction(async (session) => {
+      const existingProvider = await Provider.findById(req.params.id).session(session);
+      if (!existingProvider) return null;
+
+      const providerId = existingProvider._id;
+
+      // 1. Restore the provider
+      const updatedProvider = await Provider.findByIdAndUpdate(
+        providerId,
+        { isDeleted: false, deletedAt: null },
+        { new: true, session }
+      );
+
+      // 2. Cascade restore to the underlying User account
+      await User.updateOne({ _id: existingProvider.user }, { $set: { isDeleted: false, deletedAt: null, status: "active" } }, { session });
+
+      // 3. Cascade restore to interactions
+      await Booking.updateMany({ provider: providerId }, { $set: { isDeleted: false, deletedAt: null } }, { session });
+      await Review.updateMany({ provider: providerId }, { $set: { isDeleted: false, deletedAt: null } }, { session });
+
+      // 4. Mark ProviderServices as available
+      await ProviderService.updateMany({ provider: providerId }, { $set: { isAvailable: true } }, { session });
+
+      return updatedProvider;
+    });
 
     if (!provider) {
       return res
         .status(404)
         .json({ success: false, message: "Provider not found" });
     }
-
-    await User.findByIdAndUpdate(provider.user, { status: "active" });
 
     return res
       .status(200)
@@ -860,9 +1014,33 @@ exports.restoreProvider = async (req, res) => {
 
 exports.hardDeleteProvider = async (req, res) => {
   try {
-    const provider = await Provider.findByIdAndDelete(req.params.id);
+    const deletedProvider = await runWithTransaction(async (session) => {
+      // 1. Fetch the provider to be deleted
+      const provider = await Provider.findById(req.params.id).session(session);
+      if (!provider) return null; // Provider not found, return null
 
-    if (!provider) {
+      const providerId = provider._id;
+
+      // 2. Delete the associated User account permanently
+      await User.findByIdAndDelete(provider.user, { session });
+
+      // 3. Delete services offered by this provider
+      await ProviderService.deleteMany({ provider: providerId }, { session });
+
+      // 4. Delete bookings assigned to this provider
+      await Booking.deleteMany({ provider: providerId }, { session });
+
+      // 5. Delete complaints against this provider
+      await Complaint.deleteMany({ provider: providerId }, { session });
+
+      // 6. Delete reviews for this provider
+      await Review.deleteMany({ provider: providerId }, { session });
+
+      // 7. Finally, delete the Provider record itself
+      return await Provider.findByIdAndDelete(providerId, { session });
+    });
+
+    if (!deletedProvider) {
       return res
         .status(404)
         .json({ success: false, message: "Provider not found" });
@@ -1310,7 +1488,7 @@ exports.createAdmin = async (req, res) => {
     }
 
     // Auto-generate password using UUID
-    const plainPassword = uuidv4();
+    const plainPassword = uuidv4().slice(0, 6);
 
     // Hash Password
     const hashedPassword = await bcrypt.hash(plainPassword, 10);

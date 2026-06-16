@@ -12,7 +12,7 @@ const Service = require("../model/serviceModel");
 const ProviderService = require("../model/providerServicModel");
 const Booking = require("../model/bookingModel");
 const Location = require("../model/locationModel");
-
+const Review = require("../model/reviewModel");
 
 
 //editProfile--->
@@ -237,6 +237,62 @@ exports.getCustomerBookings = async (req, res) => {
       success: true,
       message: "Customer bookings fetched successfully",
       data: bookings,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// add a review for a completed service - login required
+exports.addReview = async (req, res) => {
+  try {
+    const { bookingId, rating, review } = req.body;
+
+    if (!bookingId || !rating) {
+      return res.status(400).json({ success: false, message: "Booking ID and rating are required." });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
+    }
+
+    // Must belong to the logged-in user
+    if (booking.customer.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: "You can only review your own bookings." });
+    }
+
+    // Must be completed
+    if (booking.status !== "completed") {
+      return res.status(400).json({ success: false, message: "You can only review completed services." });
+    }
+
+    // Check if review already exists
+    const existingReview = await Review.findOne({ booking: bookingId, customer: req.user.id, isDeleted: false });
+    if (existingReview) {
+      return res.status(400).json({ success: false, message: "You have already reviewed this booking." });
+    }
+
+    // Create review
+    const newReview = await Review.create({
+      booking: bookingId,
+      customer: req.user.id,
+      provider: booking.provider,
+      rating: Number(rating),
+      review: review || "",
+    });
+
+    // Update provider average rating
+    const allReviews = await Review.find({ provider: booking.provider, isDeleted: false });
+    if (allReviews.length > 0) {
+      const avg = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
+      await provider.findByIdAndUpdate(booking.provider, { averageRating: avg.toFixed(1) });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Review submitted successfully!",
+      data: newReview,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

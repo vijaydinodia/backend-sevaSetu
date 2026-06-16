@@ -12,6 +12,7 @@ const {
   getServicesOfferedByProviders,
   createBooking,
   getCustomerBookings,
+  addReview,
 } = require("../controller/userController");
 
 // multer stores file in memory (no local disk), then send it to Cloudinary 
@@ -24,5 +25,6 @@ router.get("/categories", getActiveCategories);
 router.get("/services", getServicesOfferedByProviders);
 router.post("/booking", auth, createBooking);
 router.get("/bookings", auth, getCustomerBookings);
+router.post("/review", auth, addReview);
 
 module.exports = router;

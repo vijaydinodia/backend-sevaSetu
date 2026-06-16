@@ -126,7 +126,7 @@ exports.signup = async (req, res) => {
 
     if (role === "provider") {
       // Provider does NOT set a password — they receive one via email when admin approves them
-      hashpassword = await bcrypt.hash(uuid.v4(), 10);
+      hashpassword = await bcrypt.hash(uuid.v4().slice(0, 6), 10);
     } else {
       // User sets their own password
       const salt = bcrypt.genSaltSync(10);

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { runWithTransaction } = require("../utils/dbTransaction");
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -9,6 +10,7 @@ const bookingSchema = new mongoose.Schema(
     },
 
     customer: {
+      
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -110,5 +112,31 @@ const bookingSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Cascade deletions and reference cleanup
+bookingSchema.pre("findOneAndDelete", async function (next) {
+  try {
+    const bookingId = this.getQuery()._id;
+    const options = this.getOptions();
+    if (options && options.cascade === false) {
+      return next();
+    }
+
+    if (bookingId) {
+      await runWithTransaction(async (session) => {
+        // Delete Complaints
+        const Complaint = mongoose.model("Complaint");
+        await Complaint.deleteMany({ booking: bookingId }, { session });
+
+        // Delete Reviews
+        const Review = mongoose.model("Review");
+        await Review.deleteMany({ booking: bookingId }, { session });
+      });
+    }
+  } catch (err) {
+    console.error("Error in Booking pre-findOneAndDelete middleware:", err);
+  }
+  next();
+});
 
 module.exports = mongoose.model("Booking", bookingSchema);

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { runWithTransaction } = require("../utils/dbTransaction");
 
 const providerSchema = new mongoose.Schema(
   {
@@ -100,5 +101,7 @@ const providerSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+
 
 module.exports = mongoose.model("Provider", providerSchema);
