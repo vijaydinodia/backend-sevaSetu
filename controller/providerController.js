@@ -106,7 +106,6 @@ exports.updateProviderProfile = async (req, res) => {
     if (experience !== undefined) providerProfile.experience = Number(experience);
     if (description !== undefined) providerProfile.description = description;
 
-    // Support both array and comma-separated string inputs for skills & serviceAreas
     if (skills) {
       providerProfile.skills = Array.isArray(skills)
         ? skills
@@ -470,7 +469,7 @@ exports.removeProviderService = async (req, res) => {
   }
 };
 
-// Apply for a new category (Provider Auth)
+// Apply for a new category 
 exports.applyForCategory = async (req, res) => {
   try {
     const { categoryId } = req.body;

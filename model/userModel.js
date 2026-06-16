@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: false, // providers get password via email on approval; admin gets UUID password on creation
+      required: false,
       select: false,
     },
 

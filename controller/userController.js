@@ -68,7 +68,7 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
-// upload image - no login needed (used when signing up as provider)
+// upload image 
 exports.uploadPublic = async (req, res) => {
   try {
     if (!req.file) {

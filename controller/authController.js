@@ -126,7 +126,6 @@ exports.signup = async (req, res) => {
 
     if (role === "provider") {
       // Provider does NOT set a password — they receive one via email when admin approves them
-      // Store a temporary unusable hash so the field is not empty
       hashpassword = await bcrypt.hash(uuid.v4(), 10);
     } else {
       // User sets their own password
@@ -163,7 +162,7 @@ exports.signup = async (req, res) => {
 
       await provider.create({
         user: newUser._id,
-        category: categoriesArray[0] || null, // Point to first for compatibility
+        category: categoriesArray[0] || null, 
         categories: mappedCategories,
         businessName: businessName || `${firstName}'s Business`,
         experience: experience ? Number(experience) : 0,
@@ -284,10 +283,12 @@ exports.forgetPassword = async (req, res) => {
     userExist.resetPasswordOtpExpiry = Date.now() + 15 * 60 * 1000;
     await userExist.save();
 
+    const otpTemplate = require("../templates/otpTemplate");
+
     await mailSender(
       normalizedEmail,
       "Password Reset OTP",
-      `<p>Your password reset OTP is <b>${otp}</b>.</p><p>This OTP is valid for 15 minutes.</p>`,
+      otpTemplate(otp),
     );
 
     return res.status(200).json({

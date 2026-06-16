@@ -17,7 +17,7 @@ router.get("/active", getActiveLocations);
 // Public/Auth route to lookup pincode details
 router.get("/pincode-lookup/:pincode", auth, isAdminOrSuperAdmin, pincodeLookup);
 
-// Protected routes
+// Protected routes 
 // City CRUD - Adding and deleting is Super Admin only
 router.post("/add", auth, isSuperAdmin, addLocation);
 router.delete("/delete/:id", auth, isSuperAdmin, deleteLocation);

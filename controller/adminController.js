@@ -9,22 +9,6 @@ const { v4: uuidv4 } = require("uuid");
 const mailSender = require("../utils/mailSender");
 const providerApprovalTemplate = require("../templates/providerApprovalTemplate");
 
-//middleware for admin only
-exports.isAdmin = async (req, res, next) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admin can access this route",
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 //admin profile--->
 exports.getAdminProfile = async (req, res) => {
   try {
@@ -45,7 +29,7 @@ exports.getAdminProfile = async (req, res) => {
 //approve provider category application
 exports.approveProvider = async (req, res) => {
   try {
-    // find the admin and their assigned category
+    // find the admin and assigned category
     const admin = await Admin.findOne({ user: req.user.id });
 
     if (!admin) {
@@ -64,7 +48,7 @@ exports.approveProvider = async (req, res) => {
       });
     }
 
-    // Admin can only approve provider for their assigned category
+    // Admin can only approve provider for assigned category
     const catApproval = provider.categories.find(
       (c) => c.category.toString() === admin.category.toString()
     );
@@ -99,13 +83,11 @@ exports.approveProvider = async (req, res) => {
       }
 
       // Send category-specific approval email
+      const categoryApprovalTemplate = require("../templates/categoryApprovalTemplate");
       await mailSender(
         provider.user.email,
         "New Service Category Approved - SevaSetu",
-        `<p>Hello ${provider.user.firstName},</p>
-         <p>Your application to offer services under your newly requested category has been approved by the assigned administrator!</p>
-         <p>You can now add services under this category from your dashboard.</p>
-         <p>Best regards,<br/>The SevaSetu Team</p>`
+        categoryApprovalTemplate(provider.user.firstName)
       );
 
       return res.status(200).json({
@@ -124,13 +106,11 @@ exports.approveProvider = async (req, res) => {
       await provider.save();
 
       // Send category-specific approval email
+      const categoryApprovalTemplate = require("../templates/categoryApprovalTemplate");
       await mailSender(
         provider.user.email,
         "New Service Category Approved - SevaSetu",
-        `<p>Hello ${provider.user.firstName},</p>
-         <p>Your application to offer services under your newly requested category has been approved by the assigned administrator!</p>
-         <p>You can now add services under this category from your dashboard.</p>
-         <p>Best regards,<br/>The SevaSetu Team</p>`
+        categoryApprovalTemplate(provider.user.firstName)
       );
 
       return res.status(200).json({
@@ -222,13 +202,11 @@ exports.rejectProvider = async (req, res) => {
     await provider.save();
 
     // send rejection email
+    const categoryRejectionTemplate = require("../templates/categoryRejectionTemplate");
     await mailSender(
       provider.user.email,
       "Provider Category Verification Status - SevaSetu",
-      `<p>Hello ${provider.user.firstName},</p>
-       <p>We regret to inform you that your request to join the category has been rejected during verification by the assigned administrator.</p>
-       <p>If you have other approved categories, you can continue to service them. Otherwise, your account status is set to inactive.</p>
-       <p>Best regards,<br/>The SevaSetu Team</p>`
+      categoryRejectionTemplate(provider.user.firstName)
     );
 
     return res.status(200).json({

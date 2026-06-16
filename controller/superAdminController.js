@@ -12,22 +12,6 @@ const Location = require("../model/locationModel");
 const adminCredentialsTemplate = require("../templates/adminCredentialsTemplate")
 const mailSender = require("../utils/mailSender");
 
-//middleware for super admin only
-exports.isSuperAdmin = async (req, res, next) => {
-  try {
-    if (req.user.role !== "superAdmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only super admin can access this route",
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 //super admin profile--->
 exports.getSuperAdminProfile = async (req, res) => {
   try {
