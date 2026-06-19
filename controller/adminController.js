@@ -887,3 +887,109 @@ exports.restoreReview = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+//get dashboard statistics--->
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const admin = await Admin.findOne({ user: req.user.id });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    const categoryId = admin.category;
+
+    // Providers stats
+    const providers = await Provider.find({
+      categories: { $elemMatch: { category: categoryId } },
+      isDeleted: false,
+    });
+    const totalProviders = providers.length;
+    const pendingProviders = providers.filter((p) => p.categories.some((c) => c.category.toString() === categoryId.toString() && c.status === "pending")).length;
+    const approvedProviders = providers.filter((p) => p.categories.some((c) => c.category.toString() === categoryId.toString() && c.status === "approved")).length;
+
+    // Bookings stats
+    const bookings = await Booking.find({
+      category: categoryId,
+      isDeleted: false,
+    });
+    const totalBookings = bookings.length;
+    const completedBookings = bookings.filter((b) => b.status === "completed").length;
+    const pendingBookings = bookings.filter((b) => b.status === "pending").length;
+
+    // Reviews stats
+    const providerIds = providers.map((p) => p._id);
+    const reviews = await Review.find({ provider: { $in: providerIds }, isDeleted: false });
+    const totalReviews = reviews.length;
+    const avgRating = totalReviews > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1) : "0.0";
+
+    // Chart Data (last 6 months)
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIndex: d.getMonth(),
+        revenue: 0,
+        bookingsCount: 0
+      });
+    }
+
+    bookings.forEach(b => {
+      const bDate = new Date(b.bookingDate || b.createdAt);
+      months.forEach(m => {
+        if (bDate.getFullYear() === m.year && bDate.getMonth() === m.monthIndex) {
+          m.bookingsCount++;
+          if (b.status === "completed") {
+            m.revenue += (b.amount || 0);
+          }
+        }
+      });
+    });
+
+    const maxRev = Math.max(...months.map(m => m.revenue), 1000);
+    const maxBook = Math.max(...months.map(m => m.bookingsCount), 5);
+    const chartPoints = months.map((m, idx) => {
+      const x = 45 + idx * 80;
+      const yRev = 170 - (m.revenue / maxRev) * 140;
+      const yBook = 170 - (m.bookingsCount / maxBook) * 140;
+      return { x, yRev, yBook, monthName: m.name, revenue: m.revenue, bookingsCount: m.bookingsCount };
+    });
+
+    // Recent Activity
+    const recentBookings = await Booking.find({ category: categoryId, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("customer provider");
+
+    const recentProviders = await Provider.find({ categories: { $elemMatch: { category: categoryId } }, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("user");
+
+    return res.status(200).json({
+      success: true,
+      message: "Dashboard statistics fetched successfully",
+      data: {
+        totalProviders,
+        pendingProviders,
+        approvedProviders,
+        totalBookings,
+        completedBookings,
+        pendingBookings,
+        totalReviews,
+        avgRating,
+        chartData: chartPoints,
+        recentBookings,
+        recentProviders
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

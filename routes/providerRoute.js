@@ -13,11 +13,15 @@ const {
   addProviderService,
   removeProviderService,
   applyForCategory,
+  getDashboardStats,
 } = require("../controller/providerController");
 
 // Protect all routes with auth + isProvider checks
 router.use(auth);
 router.use(isProvider);
+
+// Dashboard stats
+router.get("/dashboard-stats", getDashboardStats);
 
 // Profile routes
 router.get("/profile", getProviderProfile);

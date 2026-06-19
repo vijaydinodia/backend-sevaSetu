@@ -11,6 +11,7 @@ const {
   updateSuperAdmin,
   deleteSuperAdmin,
   uploadImage,
+  getDashboardStats,
   createCategory,
   getAllCategory,
   getOneCategory,
@@ -62,9 +63,12 @@ router.post("/create", createSuperAdmin);
 router.use(auth);
 router.use(isSuperAdmin);
 
-//profile
+//superAdmin dashboard stats
+router.get("/dashboard-stats", getDashboardStats);
+
+//superAdmin auth
 router.get("/profile", getSuperAdminProfile);
-router.put("/profile", editSuperAdminProfile);
+router.put("/profile/edit", editSuperAdminProfile);
 
 //super admin
 

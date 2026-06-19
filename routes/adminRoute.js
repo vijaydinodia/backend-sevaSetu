@@ -26,6 +26,7 @@ const {
   softDeleteReview,
   hardDeleteReview,
   restoreReview,
+  getDashboardStats,
 } = require("../controller/adminController");
 
 router.use(auth);
@@ -33,6 +34,7 @@ router.use(isAdmin);
 
 //profile
 router.get("/profile", getAdminProfile);
+router.get("/dashboard-stats", getDashboardStats);
 
 //provider applications
 router.get("/provider/applications/pending", getPendingProviders);

@@ -1543,3 +1543,84 @@ exports.createAdmin = async (req, res) => {
     });
   }
 };
+
+// get dashboard stats for Super Admin --->
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const [usersCount, adminsCount, providersCount, categoriesCount, bookingsCount, reviewsCount, locationsCount] = await Promise.all([
+      User.countDocuments({ isDeleted: false }),
+      Admin.countDocuments({ isDeleted: false }),
+      Provider.countDocuments({ isDeleted: false }),
+      Category.countDocuments({ isDeleted: false }),
+      Booking.countDocuments({ isDeleted: false }),
+      Review.countDocuments({ isDeleted: false }),
+      Location.countDocuments({ isDeleted: false })
+    ]);
+
+    // Chart Data (last 6 months)
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIndex: d.getMonth(),
+        revenue: 0,
+        bookingsCount: 0
+      });
+    }
+
+    const recentBookingsData = await Booking.find({ isDeleted: false });
+    recentBookingsData.forEach(b => {
+      const bDate = new Date(b.bookingDate || b.createdAt);
+      months.forEach(m => {
+        if (bDate.getFullYear() === m.year && bDate.getMonth() === m.monthIndex) {
+          m.bookingsCount++;
+          if (b.status === "completed") {
+            m.revenue += (b.amount || 0);
+          }
+        }
+      });
+    });
+
+    const maxRev = Math.max(...months.map(m => m.revenue), 1000);
+    const maxBook = Math.max(...months.map(m => m.bookingsCount), 5);
+    const chartPoints = months.map((m, idx) => {
+      const x = 45 + idx * 80;
+      const yRev = 170 - (m.revenue / maxRev) * 140;
+      const yBook = 170 - (m.bookingsCount / maxBook) * 140;
+      return { x, yRev, yBook, monthName: m.name, revenue: m.revenue, bookingsCount: m.bookingsCount };
+    });
+
+    // Recent Activity
+    const recentBookings = await Booking.find({ isDeleted: false })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("customer provider service");
+
+    const recentProviders = await Provider.find({ isDeleted: false })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("user");
+
+    return res.status(200).json({
+      success: true,
+      message: "Dashboard statistics fetched successfully",
+      data: {
+        users: usersCount,
+        admins: adminsCount,
+        providers: providersCount,
+        categories: categoriesCount,
+        bookings: bookingsCount,
+        reviews: reviewsCount,
+        locations: locationsCount,
+        chartData: chartPoints,
+        recentBookings,
+        recentProviders
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -68,6 +68,14 @@ const bookingSchema = new mongoose.Schema(
       default: "",
     },
 
+    startOtp: {
+      type: String,
+    },
+
+    endOtp: {
+      type: String,
+    },
+
     status: {
       type: String,
       enum: [
@@ -94,6 +102,23 @@ const bookingSchema = new mongoose.Schema(
     },
 
     completedAt: {
+      type: Date,
+      default: null,
+    },
+
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "upi", "debit", "wallet", ""],
+      default: "",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "completed"],
+      default: "pending",
+    },
+
+    paymentDate: {
       type: Date,
       default: null,
     },

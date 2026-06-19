@@ -199,6 +199,10 @@ exports.createBooking = async (req, res) => {
     // Generate unique BK number
     const bookingNumber = "BK-" + Date.now() + "-" + Math.floor(1000 + Math.random() * 9000);
 
+    // Generate 4-digit OTPs
+    const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
     const booking = await Booking.create({
       bookingNumber,
       customer: req.user.id,
@@ -212,6 +216,8 @@ exports.createBooking = async (req, res) => {
       bookingTime,
       amount: provService.price || provService.service.basePrice,
       notes: notes || "",
+      startOtp,
+      endOtp,
       status: "pending",
     });
 
@@ -233,15 +239,31 @@ exports.getCustomerBookings = async (req, res) => {
       .populate({ path: "service", populate: { path: "category" } })
       .sort({ createdAt: -1 });
 
+    // Attach hasReview flag to each completed booking
+    const bookingIds = bookings.map((b) => b._id);
+    const existingReviews = await Review.find({
+      booking: { $in: bookingIds },
+      customer: req.user.id,
+      isDeleted: false,
+    }).select("booking");
+
+    const reviewedBookingIds = new Set(existingReviews.map((r) => r.booking.toString()));
+
+    const bookingsWithReviewFlag = bookings.map((b) => ({
+      ...b.toObject(),
+      hasReview: reviewedBookingIds.has(b._id.toString()),
+    }));
+
     return res.status(200).json({
       success: true,
       message: "Customer bookings fetched successfully",
-      data: bookings,
+      data: bookingsWithReviewFlag,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // add a review for a completed service - login required
 exports.addReview = async (req, res) => {
@@ -293,6 +315,84 @@ exports.addReview = async (req, res) => {
       success: true,
       message: "Review submitted successfully!",
       data: newReview,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// get public details of a provider (including reviews and services)
+exports.getProviderDetails = async (req, res) => {
+  try {
+    const providerId = req.params.id;
+
+    const providerProfile = await provider.findById(providerId)
+      .populate("user", "firstName lastName email phone profileImage")
+      .populate("category");
+
+    if (!providerProfile || providerProfile.isDeleted) {
+      return res.status(404).json({ success: false, message: "Provider not found" });
+    }
+
+    const reviews = await Review.find({ provider: providerId, isDeleted: false })
+      .populate("customer", "firstName lastName profileImage")
+      .sort({ createdAt: -1 });
+
+    const services = await ProviderService.find({ provider: providerId, isAvailable: true })
+      .populate({ path: "service", populate: { path: "category" } });
+
+    return res.status(200).json({
+      success: true,
+      message: "Provider details fetched successfully",
+      data: {
+        provider: providerProfile,
+        reviews,
+        services,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// User pays for a completed booking
+exports.payForBooking = async (req, res) => {
+  try {
+    const { paymentMethod } = req.body;
+    const bookingId = req.params.id;
+
+    if (!paymentMethod || !["cash", "upi", "debit", "wallet"].includes(paymentMethod.toLowerCase())) {
+      return res.status(400).json({ success: false, message: "Valid payment method is required." });
+    }
+
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      customer: req.user.id,
+      isDeleted: false,
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
+    }
+
+    if (booking.status !== "completed") {
+      return res.status(400).json({ success: false, message: "You can only pay for completed bookings." });
+    }
+
+    if (booking.paymentStatus === "completed") {
+      return res.status(400).json({ success: false, message: "Booking is already paid." });
+    }
+
+    booking.paymentMethod = paymentMethod.toLowerCase();
+    booking.paymentStatus = "completed";
+    booking.paymentDate = new Date();
+
+    await booking.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment successful.",
+      data: booking,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

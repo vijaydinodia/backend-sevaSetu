@@ -166,7 +166,7 @@ exports.getProviderBookings = async (req, res) => {
 // Update status of a booking assigned to provider
 exports.updateProviderBookingStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, otp, paymentMethod } = req.body;
     const bookingId = req.params.id;
 
     const allowedStatus = ["accepted", "on_the_way", "started", "completed", "rejected"];
@@ -208,8 +208,25 @@ exports.updateProviderBookingStatus = async (req, res) => {
     const oldStatus = booking.status;
     booking.status = status;
 
+    if (status === "started") {
+      if (!otp) {
+        return res.status(400).json({ success: false, message: "OTP is required to start the job" });
+      }
+      if (otp !== booking.startOtp) {
+        return res.status(400).json({ success: false, message: "Invalid Start OTP" });
+      }
+    }
+
     if (status === "completed") {
+      if (!otp) {
+        return res.status(400).json({ success: false, message: "OTP is required to complete the job" });
+      }
+      if (otp !== booking.endOtp) {
+        return res.status(400).json({ success: false, message: "Invalid End OTP" });
+      }
+      
       booking.completedAt = new Date();
+      
       // If booking was not previously completed, update provider stats
       if (oldStatus !== "completed") {
         providerProfile.totalBookings += 1;
@@ -340,7 +357,7 @@ exports.getMyServices = async (req, res) => {
 // Add a custom service to the provider's offerings
 exports.addProviderService = async (req, res) => {
   try {
-    const { serviceName, description, category, price } = req.body;
+    const { serviceName, description, category, price, image } = req.body;
 
     if (!serviceName || !description || !category || !price) {
       return res.status(400).json({
@@ -396,9 +413,14 @@ exports.addProviderService = async (req, res) => {
         description: trimmedDesc,
         basePrice: Number(price),
         estimatedDuration: 60, // default
+        image: image || "",
         isActive: true,
         createdBy: req.user.id,
       });
+    } else if (image && (!service.image || service.image.includes('placehold.co'))) {
+        // If the service already exists but has no image, update it
+        service.image = image;
+        await service.save();
     }
 
     // Check if provider already has this service mapped
@@ -527,3 +549,107 @@ exports.applyForCategory = async (req, res) => {
   }
 };
 
+// get provider dashboard stats
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const providerProfile = await Provider.findOne({ user: req.user.id });
+    if (!providerProfile) {
+      return res.status(404).json({ success: false, message: "Provider profile not found" });
+    }
+
+    const bookings = await Booking.find({
+      provider: providerProfile._id,
+      isDeleted: false,
+    }).populate("customer").populate("service");
+
+    const totalBookingsCount = bookings.length;
+    const todayBookingsCount = bookings.filter(b => new Date(b.bookingDate).toDateString() === new Date().toDateString()).length;
+    
+    // Calculate unique customers
+    const customersSet = new Set();
+    let earningsSum = 0;
+    
+    bookings.forEach(b => {
+      if (b.customer) customersSet.add(b.customer._id.toString());
+      if (b.status === 'completed') {
+        earningsSum += (b.amount || 0);
+      }
+    });
+    
+    const customersCount = customersSet.size;
+    const ratingScore = providerProfile.averageRating || '0.0';
+
+    // Chart Data (last 6 months)
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIndex: d.getMonth(),
+        revenue: 0,
+        bookingsCount: 0
+      });
+    }
+
+    bookings.forEach(b => {
+      const bDate = new Date(b.bookingDate || b.createdAt);
+      months.forEach(m => {
+        if (bDate.getFullYear() === m.year && bDate.getMonth() === m.monthIndex) {
+          m.bookingsCount++;
+          if (b.status === "completed") {
+            m.revenue += (b.amount || 0);
+          }
+        }
+      });
+    });
+
+    const maxRev = Math.max(...months.map(m => m.revenue), 1000);
+    const maxBook = Math.max(...months.map(m => m.bookingsCount), 5);
+    const chartPoints = months.map((m, idx) => {
+      const x = 45 + idx * 80;
+      const yRev = 170 - (m.revenue / maxRev) * 140;
+      const yBook = 170 - (m.bookingsCount / maxBook) * 140;
+      return { x, yRev, yBook, monthName: m.name, revenue: m.revenue, bookingsCount: m.bookingsCount };
+    });
+
+    // Dynamic Notifications
+    const alerts = [];
+    const sortedBookings = [...bookings].sort((a, b) => new Date(b.createdAt || b.bookingDate) - new Date(a.createdAt || a.bookingDate));
+    
+    sortedBookings.slice(0, 5).forEach(b => {
+      const custName = b.customer ? `${b.customer.firstName} ${b.customer.lastName}` : 'Guest User';
+      const servName = b.service?.serviceName || b.service?.title || 'service';
+      const timeStr = new Date(b.createdAt || b.bookingDate).toLocaleDateString();
+      
+      if (b.status === 'pending') {
+        alerts.push({ text: `New service booking request received from ${custName} for ${servName}.`, time: `Slot: ${b.bookingTime}`, type: 'new' });
+      } else if (b.status === 'completed') {
+        alerts.push({ text: `Service request for ${servName} completed successfully for ${custName}.`, time: `Date: ${timeStr}, Amount: ₹${b.amount}`, type: 'payment' });
+      } else if (b.status === 'cancelled') {
+        alerts.push({ text: `Service request for ${servName} was cancelled.`, time: `Slot: ${b.bookingTime}`, type: 'reschedule' });
+      } else {
+        alerts.push({ text: `Booking request for ${servName} is in progress (${b.status?.replace(/_/g, ' ')}).`, time: `Slot: ${b.bookingTime}`, type: 'reschedule' });
+      }
+    });
+    
+    alerts.push({ text: "Congratulations! Your partner account is active and verified on SevaSetu.", time: "Welcome Alert", type: "kyc" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Dashboard statistics fetched successfully",
+      data: {
+        totalBookingsCount,
+        todayBookingsCount,
+        customersCount,
+        earningsSum,
+        ratingScore,
+        chartData: chartPoints,
+        dynamicAlerts: alerts
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
