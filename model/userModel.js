@@ -23,8 +23,9 @@ const userSchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
     },
 
     password: {
@@ -37,6 +38,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "provider", "admin", "superAdmin"],
       default: "user",
+    },
+
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "firebase", "google"],
+      default: "local",
     },
 
     profileImage: String,
