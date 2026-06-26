@@ -12,6 +12,10 @@ mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("DB is connected");
+    // Drop the old unique phone index to prevent duplicate null key errors
+    mongoose.connection.db.collection("users").dropIndex("phone_1").catch((err) => {
+      // Ignore error if index doesn't exist
+    });
   })
   .catch((err) => console.log("Db is not connected ,", err));
 
