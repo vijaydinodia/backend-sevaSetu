@@ -44,9 +44,15 @@ const userSchema = new mongoose.Schema(
       sparse: true,
     },
 
+    githubId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
     authProvider: {
       type: String,
-      enum: ["local", "firebase", "google"],
+      enum: ["local", "firebase", "google", "github"],
       default: "local",
     },
 
