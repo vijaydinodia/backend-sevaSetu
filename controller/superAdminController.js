@@ -8,6 +8,7 @@ const SuperAdmin = require("../model/superAdminModel");
 const Complaint = require("../model/complaintModel");
 const ProviderService = require("../model/providerServicModel");
 const Service = require("../model/serviceModel");
+const Session = require("../model/sessionModel");
 const { uploadImages } = require("../utils/cloudnairy");
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
@@ -1618,6 +1619,74 @@ exports.getDashboardStats = async (req, res) => {
         chartData: chartPoints,
         recentBookings,
         recentProviders
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+//active sessions (for super admin)--->
+
+exports.getActiveSessions = async (req, res) => {
+  try {
+    // 1) Total users count (not deleted)
+    const totalUsers = await User.countDocuments({ isDeleted: false });
+
+    // 2) Auto-expire sessions older than 24 hours (matches JWT expiry)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await Session.updateMany(
+      { isActive: true, loginAt: { $lt: twentyFourHoursAgo } },
+      { $set: { isActive: false, logoutAt: twentyFourHoursAgo } },
+    );
+
+    // 3) Fetch all currently active sessions with user details
+    const activeSessions = await Session.find({ isActive: true })
+      .populate("user", "firstName lastName email phone role profileImage status")
+      .sort({ loginAt: -1 });
+
+    // 4) Count of active sessions
+    const activeSessionsCount = activeSessions.length;
+
+    // 5) Count unique active users (one user can have multiple sessions)
+    const uniqueActiveUserIds = [...new Set(activeSessions.map((s) => s.user?._id?.toString()).filter(Boolean))];
+    const activeUsersCount = uniqueActiveUserIds.length;
+
+    // 6) Device type breakdown (how many Mobile, Desktop, Tablet)
+    const deviceBreakdown = { Mobile: 0, Desktop: 0, Tablet: 0, Unknown: 0 };
+    activeSessions.forEach((s) => {
+      if (deviceBreakdown[s.deviceType] !== undefined) {
+        deviceBreakdown[s.deviceType]++;
+      } else {
+        deviceBreakdown["Unknown"]++;
+      }
+    });
+
+    // 7) OS breakdown
+    const osBreakdown = {};
+    activeSessions.forEach((s) => {
+      const key = s.os || "Unknown";
+      osBreakdown[key] = (osBreakdown[key] || 0) + 1;
+    });
+
+    // 8) Browser breakdown
+    const browserBreakdown = {};
+    activeSessions.forEach((s) => {
+      const key = s.browser || "Unknown";
+      browserBreakdown[key] = (browserBreakdown[key] || 0) + 1;
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Active sessions fetched successfully",
+      data: {
+        totalUsers,
+        activeUsersCount,
+        activeSessionsCount,
+        deviceBreakdown,
+        osBreakdown,
+        browserBreakdown,
+        sessions: activeSessions,
       },
     });
   } catch (error) {

@@ -54,6 +54,7 @@ const {
   hardDeleteReview,
   getAllLocation,
   createAdmin,
+  getActiveSessions,
 } = require("../controller/superAdminController");
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -65,6 +66,9 @@ router.use(isSuperAdmin);
 
 //superAdmin dashboard stats
 router.get("/dashboard-stats", getDashboardStats);
+
+//active sessions
+router.get("/sessions/active", getActiveSessions);
 
 //superAdmin auth
 router.get("/profile", getSuperAdminProfile);

@@ -2,6 +2,7 @@ const user = require("../model/userModel");
 const provider = require("../model/providerModel");
 const admin = require("../model/adminModel");
 const superAdmin = require("../model/superAdminModel");
+const Session = require("../model/sessionModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const uuid = require("uuid");
@@ -393,6 +394,31 @@ exports.payForBooking = async (req, res) => {
       success: true,
       message: "Payment successful.",
       data: booking,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+//logout--->
+
+exports.logout = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // Mark all active sessions of this user as inactive
+    await Session.updateMany(
+      { user: userId, isActive: true },
+      { $set: { isActive: false, logoutAt: new Date() } },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

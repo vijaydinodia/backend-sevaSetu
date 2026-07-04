@@ -1,7 +1,10 @@
 const User = require("../model/userModel");
 const Provider = require("../model/providerModel");
 const Location = require("../model/locationModel");
+const Session = require("../model/sessionModel");
 const jwt = require("jsonwebtoken");
+const { parseUserAgent } = require("../utils/parseUserAgent");
+const { getIpLocation } = require("../utils/getIpLocation");
 
 // Helper to generate local JWT for the user (existing RBAC format)
 const generateLocalToken = (userObj) => {
@@ -174,6 +177,21 @@ exports.firebaseSignup = async (req, res) => {
 
     const token = generateLocalToken(syncedUser);
 
+    // --- Create a session record ---
+    const userAgent = req.headers["user-agent"] || "";
+    const { deviceType, os, browser } = parseUserAgent(userAgent);
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "Unknown";
+    const location = await getIpLocation(ip);
+
+    await Session.create({
+      user: syncedUser._id,
+      deviceType,
+      os,
+      browser,
+      ip,
+      location,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Firebase registration and sync successful",
@@ -199,6 +217,21 @@ exports.firebaseLogin = async (req, res) => {
     );
 
     const token = generateLocalToken(syncedUser);
+
+    // --- Create a session record ---
+    const userAgent = req.headers["user-agent"] || "";
+    const { deviceType, os, browser } = parseUserAgent(userAgent);
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "Unknown";
+    const location = await getIpLocation(ip);
+
+    await Session.create({
+      user: syncedUser._id,
+      deviceType,
+      os,
+      browser,
+      ip,
+      location,
+    });
 
     return res.status(200).json({
       success: true,
@@ -235,6 +268,21 @@ exports.firebaseGoogle = async (req, res) => {
     );
 
     const token = generateLocalToken(syncedUser);
+
+    // --- Create a session record ---
+    const userAgent = req.headers["user-agent"] || "";
+    const { deviceType, os, browser } = parseUserAgent(userAgent);
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "Unknown";
+    const location = await getIpLocation(ip);
+
+    await Session.create({
+      user: syncedUser._id,
+      deviceType,
+      os,
+      browser,
+      ip,
+      location,
+    });
 
     return res.status(200).json({
       success: true,

@@ -1,3 +1,4 @@
+// Force nodemon reload
 const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -40,7 +41,6 @@ mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("DB is connected");
-    // Drop the old unique phone index to prevent duplicate null key errors
     mongoose.connection.db.collection("users").dropIndex("phone_1").catch((err) => {
 
     });

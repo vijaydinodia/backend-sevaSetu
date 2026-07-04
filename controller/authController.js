@@ -1,10 +1,13 @@
 const user = require("../model/userModel");
 const provider = require("../model/providerModel");
+const Session = require("../model/sessionModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const uuid = require("uuid");
 const mailSender = require("../utils/mailSender");
 const Location = require("../model/locationModel");
+const { parseUserAgent } = require("../utils/parseUserAgent");
+const { getIpLocation } = require("../utils/getIpLocation");
 
 //signup--->
 
@@ -248,6 +251,27 @@ exports.login = async (req, res) => {
     console.log(">>>>>>token>>>>>>", token);
 
     userExist.password = undefined;
+
+    // --- Create a session record ---
+    // Parse device info from User-Agent header
+    const userAgent = req.headers["user-agent"] || "";
+    const { deviceType, os, browser } = parseUserAgent(userAgent);
+
+    // Get user's IP address
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "Unknown";
+
+    // Look up location from IP (non-blocking, won't fail login)
+    const location = await getIpLocation(ip);
+
+    // Save the session to database
+    await Session.create({
+      user: userExist._id,
+      deviceType,
+      os,
+      browser,
+      ip,
+      location,
+    });
 
     return res.status(200).json({
       success: true,

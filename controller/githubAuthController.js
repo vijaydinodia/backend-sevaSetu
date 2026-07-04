@@ -1,6 +1,9 @@
 const User = require("../model/userModel");
+const Session = require("../model/sessionModel");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const { parseUserAgent } = require("../utils/parseUserAgent");
+const { getIpLocation } = require("../utils/getIpLocation");
 
 const generateLocalToken = (userObj) => {
   return jwt.sign(
@@ -166,6 +169,21 @@ exports.githubCallback = async (req, res) => {
     );
 
     const token = generateLocalToken(user);
+
+    // --- Create a session record ---
+    const userAgent = req.headers["user-agent"] || "";
+    const { deviceType, os, browser } = parseUserAgent(userAgent);
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "Unknown";
+    const location = await getIpLocation(ip);
+
+    await Session.create({
+      user: user._id,
+      deviceType,
+      os,
+      browser,
+      ip,
+      location,
+    });
 
     return res.status(200).json({
       success: true,
