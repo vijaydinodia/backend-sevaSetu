@@ -55,6 +55,7 @@ const providerRoute = require("./routes/providerRoute");
 const locationRoute = require("./routes/locationRoute");
 const firebaseAuthRoute = require("./routes/firebaseAuthRoute");
 const githubAuthRoute = require("./routes/githubAuthRoute");
+const healthRoute = require("./routes/healthRoute");
 
 app.use("/user", authLimiter, authRoute);
 app.use("/user", userRoute);
@@ -64,6 +65,7 @@ app.use("/provider", providerRoute);
 app.use("/location", locationRoute);
 app.use("/auth", authLimiter, firebaseAuthRoute);
 app.use("/auth", authLimiter, githubAuthRoute);
+app.use("/health", healthRoute);
 
 app.use((req, res) => {
   return res.status(404).json({

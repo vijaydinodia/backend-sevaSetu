@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { runWithTransaction } = require("../utils/dbTransaction");
 
 const userSchema = new mongoose.Schema(
   {
