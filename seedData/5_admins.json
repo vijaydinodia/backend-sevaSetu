@@ -1,0 +1,47 @@
+[
+  {
+    "_id": { "$oid": "661500000000000000000001" },
+    "user": { "$oid": "661200000000000000000001" },
+    "employeeId": "EMP-MUM-001",
+    "category": { "$oid": "661300000000000000000001" },
+    "city": "Mumbai",
+    "permissions": ["manageUsers", "manageProviders", "manageBookings", "manageServices", "manageComplaints"],
+    "department": "Operations",
+    "status": "active",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "createdAt": { "$date": "2026-02-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-02-01T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661500000000000000000002" },
+    "user": { "$oid": "661200000000000000000002" },
+    "employeeId": "EMP-PUN-002",
+    "category": { "$oid": "661300000000000000000003" },
+    "city": "Pune",
+    "permissions": ["manageUsers", "manageBookings", "manageComplaints"],
+    "department": "Support",
+    "status": "active",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "createdAt": { "$date": "2026-02-05T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-02-05T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661500000000000000000003" },
+    "user": { "$oid": "661200000000000000000003" },
+    "employeeId": "EMP-NAG-003",
+    "category": { "$oid": "661300000000000000000002" },
+    "city": "Nagpur",
+    "permissions": ["manageProviders", "manageServices"],
+    "department": "Technical",
+    "status": "inactive",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "createdAt": { "$date": "2026-02-10T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-02-10T00:00:00.000Z" }
+  }
+]

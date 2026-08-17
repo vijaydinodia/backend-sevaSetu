@@ -1,0 +1,74 @@
+[
+  {
+    "_id": { "$oid": "661900000000000000000001" },
+    "booking": { "$oid": "661800000000000000000001" },
+    "customer": { "$oid": "661200000000000000000009" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 5,
+    "review": "Priya did an amazing bathroom cleaning. Tiles look brand new. Very professional and thorough!",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-05-11T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-05-11T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661900000000000000000002" },
+    "booking": { "$oid": "661800000000000000000002" },
+    "customer": { "$oid": "661200000000000000000010" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 5,
+    "review": "Kitchen was spotless after the cleaning. Priya is hardworking and pays attention to detail.",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-05-21T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-05-21T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661900000000000000000003" },
+    "booking": { "$oid": "661800000000000000000003" },
+    "customer": { "$oid": "661200000000000000000011" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 4,
+    "review": "Good pre-party clean. The house was guest-ready. Came on time and worked efficiently.",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-06-06T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-06-06T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661900000000000000000004" },
+    "booking": { "$oid": "661800000000000000000005" },
+    "customer": { "$oid": "661200000000000000000012" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 4,
+    "review": "Balcony cleaning was done well. Planters and railings look fresh. Would book again.",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-07-16T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-07-16T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661900000000000000000005" },
+    "booking": { "$oid": "661800000000000000000006" },
+    "customer": { "$oid": "661200000000000000000014" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 3,
+    "review": "Fan cleaning was done but the provider was a bit slow. Expected it to be done faster.",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-07-26T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-07-26T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661900000000000000000006" },
+    "booking": { "$oid": "661800000000000000000007" },
+    "customer": { "$oid": "661200000000000000000015" },
+    "provider": { "$oid": "661600000000000000000002" },
+    "rating": 5,
+    "review": "All kitchen cabinets are so well organized now. Excellent service, highly recommend Priya!",
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": { "$date": "2026-08-06T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-08-06T00:00:00.000Z" }
+  }
+]

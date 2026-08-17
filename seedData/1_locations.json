@@ -1,0 +1,74 @@
+[
+  {
+    "_id": { "$oid": "661100000000000000000001" },
+    "city": "Mumbai",
+    "district": "Mumbai",
+    "state": "Maharashtra",
+    "pincodes": [
+      { "pincode": "400001", "isActive": true },
+      { "pincode": "400002", "isActive": true },
+      { "pincode": "400003", "isActive": true },
+      { "pincode": "400004", "isActive": true },
+      { "pincode": "400005", "isActive": false }
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2026-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-01T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661100000000000000000002" },
+    "city": "Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "pincodes": [
+      { "pincode": "411001", "isActive": true },
+      { "pincode": "411002", "isActive": true },
+      { "pincode": "411003", "isActive": true },
+      { "pincode": "411004", "isActive": true }
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2026-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-01T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661100000000000000000003" },
+    "city": "Nagpur",
+    "district": "Nagpur",
+    "state": "Maharashtra",
+    "pincodes": [
+      { "pincode": "440001", "isActive": true },
+      { "pincode": "440002", "isActive": true },
+      { "pincode": "440003", "isActive": false }
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2026-01-02T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-02T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661100000000000000000004" },
+    "city": "Ahmedabad",
+    "district": "Ahmedabad",
+    "state": "Gujarat",
+    "pincodes": [
+      { "pincode": "380001", "isActive": true },
+      { "pincode": "380002", "isActive": true },
+      { "pincode": "380005", "isActive": true }
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2026-01-02T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-02T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661100000000000000000005" },
+    "city": "Jaipur",
+    "district": "Jaipur",
+    "state": "Rajasthan",
+    "pincodes": [
+      { "pincode": "302001", "isActive": true },
+      { "pincode": "302002", "isActive": true }
+    ],
+    "isActive": false,
+    "createdAt": { "$date": "2026-01-03T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-03T00:00:00.000Z" }
+  }
+]

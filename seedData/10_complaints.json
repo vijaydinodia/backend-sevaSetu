@@ -1,0 +1,32 @@
+[
+  {
+    "_id": { "$oid": "661a00000000000000000001" },
+    "booking": { "$oid": "661800000000000000000004" },
+    "customer": { "$oid": "661200000000000000000009" },
+    "provider": { "$oid": "661600000000000000000001" },
+    "issue": "The provider did not arrive at the booked time and did not inform in advance. The booking had to be cancelled.",
+    "status": "resolved",
+    "createdAt": { "$date": "2026-06-25T15:00:00.000Z" },
+    "updatedAt": { "$date": "2026-06-27T10:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661a00000000000000000002" },
+    "booking": { "$oid": "661800000000000000000006" },
+    "customer": { "$oid": "661200000000000000000014" },
+    "provider": { "$oid": "661600000000000000000003" },
+    "issue": "The provider was rude during the service and left without cleaning up after the work.",
+    "status": "in_progress",
+    "createdAt": { "$date": "2026-07-26T08:00:00.000Z" },
+    "updatedAt": { "$date": "2026-07-28T09:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661a00000000000000000003" },
+    "booking": { "$oid": "661800000000000000000011" },
+    "customer": { "$oid": "661200000000000000000009" },
+    "provider": { "$oid": "661600000000000000000003" },
+    "issue": "Booking was rejected without any valid reason. Provider should have communicated better.",
+    "status": "open",
+    "createdAt": { "$date": "2026-08-16T06:00:00.000Z" },
+    "updatedAt": { "$date": "2026-08-16T06:00:00.000Z" }
+  }
+]

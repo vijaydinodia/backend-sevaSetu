@@ -1,0 +1,80 @@
+[
+  {
+    "_id": { "$oid": "661300000000000000000001" },
+    "name": "plumbing",
+    "description": "All kinds of plumbing services including pipe fitting, leak repair, drain cleaning, and bathroom fittings.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/plumbing.jpg",
+    "isActive": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": null,
+    "createdAt": { "$date": "2026-01-10T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-10T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661300000000000000000002" },
+    "name": "electrical",
+    "description": "Electrical services including wiring, switchboard repair, appliance installation, and short circuit fixing.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/electrical.jpg",
+    "isActive": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": null,
+    "createdAt": { "$date": "2026-01-10T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-10T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661300000000000000000003" },
+    "name": "cleaning",
+    "description": "Home and office cleaning services including deep cleaning, bathroom, kitchen, and carpet cleaning.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/cleaning.jpg",
+    "isActive": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": null,
+    "createdAt": { "$date": "2026-01-11T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-11T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661300000000000000000004" },
+    "name": "carpentry",
+    "description": "Carpentry services including furniture assembly, door/window repair, wood polishing, and custom woodwork.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/carpentry.jpg",
+    "isActive": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": null,
+    "createdAt": { "$date": "2026-01-12T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-12T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661300000000000000000005" },
+    "name": "painting",
+    "description": "Interior and exterior painting services including wall painting, waterproofing, and texture painting.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/painting.jpg",
+    "isActive": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "createdAt": { "$date": "2026-01-13T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-06-01T00:00:00.000Z" }
+  },
+  {
+    "_id": { "$oid": "661300000000000000000006" },
+    "name": "appliance repair",
+    "description": "Repair and servicing of home appliances like AC, washing machine, refrigerator, microwave, and TV.",
+    "image": "https://res.cloudinary.com/sevasetu/image/upload/appliance_repair.jpg",
+    "isActive": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdBy": { "$oid": "6a834eca5f96287a5e3b6047" },
+    "updatedBy": null,
+    "createdAt": { "$date": "2026-01-14T00:00:00.000Z" },
+    "updatedAt": { "$date": "2026-01-14T00:00:00.000Z" }
+  }
+]
